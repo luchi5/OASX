@@ -2,7 +2,13 @@
 
 这是面向 [OnmyojiAutoScript](https://github.com/luchi5/OnmyojiAutoScript) 的 Flutter 图形客户端，基于 [AzurTian/OASX v0.3.9](https://github.com/AzurTian/OASX) 的界面与 GPL-3.0 源码。它提供任务工作台、参数编辑、实时日志、统计、按账号查看错误档案、庭院多选和配置导入导出。后端和 [网页面板](https://github.com/luchi5/OAS-WebPanel) 分别维护。
 
-2026-10-11：与 OAS 最新定制任务一起核对，补齐“彼世逢魔”菜单、配置组及按名称绿标的中英文标签。任务及参数仍由后端提供，不改个人目录、连接配置或启动行为。本仓库提供源码，使用新标签需要重新编译客户端。
+2026-10-11：与 OAS 最新定制任务一起核对，补齐“彼世逢魔”菜单、配置组及按名称绿标的中英文标签。任务及参数仍由后端提供，不改个人目录、连接配置或启动行为。
+
+## 下载 Windows 程序
+
+在 [Releases](https://github.com/luchi5/OASX/releases) 下载 `oasx_luchi-日期_windows_x64.zip`，完整解压后双击“启动OASX.cmd”，也可以直接运行 `app/oasx.exe`。无需安装 Flutter；不要只复制 exe，配套 DLL 和 `data` 必须保留。设置与日志在解压目录内的 `profile-oasx/` 首次运行时生成，发行包不包含个人配置。
+
+这是 Windows x64 图形客户端，OAS 主脚本后台仍需另外安装并连接。程序不自动部署后台、不自动升级。对应 Release 标签与 `build-info.json` 提供匹配源码版本；`SHA256SUMS.txt` 可用于核对下载包。
 
 兼容基线为 `e05492c5ff0454780ccb12b1ff945c1d944710ee`，保留上游 Git 历史。本 fork 固定兼容接口，自动更新和安装功能已关闭；后续升级需检查与主脚本的协议兼容。版本号沿用上游构建配置，来源与修改范围见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
@@ -58,7 +64,7 @@ flutter test --dart-define=OASX_PREVIEW=true
 python -B -m unittest discover -s dev_tools -p test_ui_preview_server.py
 ```
 
-测试使用模拟接口、内存数据或独立临时目录，不读取用户后端配置或启动游戏。本仓库目前提供源码，Windows 程序按上面的构建步骤生成；尚未配置 GitHub Actions 自动发行流程。
+测试使用模拟接口、内存数据或独立临时目录，不读取用户后端配置或启动游戏。`Windows portable package` Actions 工作流可手动构建发行包：锁定依赖后执行静态分析、离线测试、Windows 原生编译，并在隔离 runner 中核验解压后的程序窗口和默认配置。核对产物后发布到 Releases；工作流不发布网页或 Android 程序。
 
 ## 许可证
 

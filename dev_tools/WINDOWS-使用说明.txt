@@ -1,0 +1,14 @@
+OASX 主脚本兼容版 · Windows x64
+
+1. 将整个压缩包解压到独立、可写的文件夹，不要直接在压缩包里运行。
+2. 双击“启动OASX.cmd”，或进入 app 文件夹双击 oasx.exe。
+3. 在设置页填写你自己的 OAS 后端地址、用户名和密码。默认地址为 127.0.0.1:22289。
+4. 本包是图形客户端，不包含 OAS 主脚本、Python、ADB 或模拟器，也不会自动部署它们。
+5. app 文件夹中的 DLL 和 data 都是运行必需文件，不能只复制 oasx.exe。
+6. 设置、缓存和日志在本包根目录的 profile-oasx 文件夹中首次运行时生成。不要分享该文件夹。
+7. 自动登录、自动启动任务、开机自启默认关闭；退出客户端停止后端默认关闭。
+
+源码与版本：https://github.com/luchi5/OASX
+匹配源码的精确提交、文件校验值见 build-info.json。对应 Release 标签提供完整源码。
+GPL-3.0 许可证见 LICENSE。字体许可见 Lato-OFL.txt；Flutter 依赖许可见 app/data/flutter_assets/NOTICES.Z。
+本包附带 Microsoft Visual C++ x64 的三个运行库文件，许可由 Microsoft 保留。

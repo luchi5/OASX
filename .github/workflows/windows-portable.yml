@@ -1,0 +1,80 @@
+name: Windows portable package
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release label (for example luchi-2026.10.11)
+        required: true
+        default: luchi-2026.10.11
+      build_number:
+        description: Numeric Windows build number
+        required: true
+        default: '20261011'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      BUILD_NAME: '0.3.9'
+    steps:
+      - name: Checkout public source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate build labels
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^luchi-[0-9]{4}\.[0-9]{2}\.[0-9]{2}([.-][a-zA-Z0-9]+)?$') { throw 'Invalid release label' }
+          if ($env:BUILD_NUMBER -notmatch '^[1-9][0-9]{0,8}$') { throw 'Invalid build number' }
+
+      - name: Setup pinned Flutter SDK
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: '3.35.1'
+          channel: stable
+          cache: true
+
+      - name: Restore locked dependencies
+        shell: pwsh
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze and run offline regressions
+        shell: pwsh
+        run: |
+          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings lib
+          if ($LASTEXITCODE -ne 0) { throw 'Dart analysis failed' }
+          flutter test --no-pub --concurrency=1
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter regression tests failed' }
+
+      - name: Compile Windows x64 release
+        shell: pwsh
+        run: |
+          flutter build windows --release --no-pub --dart-define=OASX_PREVIEW=false --build-name $env:BUILD_NAME --build-number $env:BUILD_NUMBER
+          if ($LASTEXITCODE -ne 0) { throw 'Windows build failed' }
+
+      - name: Package complete portable client
+        shell: pwsh
+        run: ./dev_tools/package_windows.ps1 -ReleaseTag $env:RELEASE_TAG -BuildName $env:BUILD_NAME -BuildNumber $env:BUILD_NUMBER
+
+      - name: Verify extracted Windows program starts
+        shell: pwsh
+        run: ./dev_tools/smoke_windows_package.ps1 -Archive (Join-Path $pwd "artifacts/oasx_$($env:RELEASE_TAG)_windows_x64.zip")
+
+      - name: Preserve verified package for publication
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-portable-${{ inputs.release_tag }}
+          path: |
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+            artifacts/smoke-result.json
+          if-no-files-found: error
+          retention-days: 14

@@ -2,6 +2,39 @@ param([Parameter(Mandatory)][string]$Archive)
 $ErrorActionPreference = 'Stop'
 # This fixture runs only on a disposable Actions runner, with no OAS backend.
 if ($env:GITHUB_ACTIONS -ne 'true' -or !$env:RUNNER_TEMP) { throw 'Native smoke test requires an isolated GitHub Actions runner' }
+# MainWindowHandle deliberately ignores hidden windows. Enumerate only this
+# fixture's Flutter root window instead, and require its Dart-configured title.
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class OasxSmokeWindow {
+    public delegate bool EnumProc(IntPtr hwnd, IntPtr param);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc callback, IntPtr param);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder text, int count);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hwnd, StringBuilder text, int count);
+    public static IntPtr Find(int processId) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((hwnd, ignored) => {
+            uint owner;
+            GetWindowThreadProcessId(hwnd, out owner);
+            if (owner != (uint)processId) return true;
+            var name = new StringBuilder(256);
+            GetClassName(hwnd, name, name.Capacity);
+            if (name.ToString() != "FLUTTER_RUNNER_WIN32_WINDOW") return true;
+            found = hwnd;
+            return false;
+        }, IntPtr.Zero);
+        return found;
+    }
+    public static string Title(IntPtr hwnd) {
+        var text = new StringBuilder(1024);
+        GetWindowText(hwnd, text, text.Capacity);
+        return text.ToString();
+    }
+}
+'@
 $scratch = Join-Path $env:RUNNER_TEMP ('oasx-smoke-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $scratch | Out-Null
 Expand-Archive -LiteralPath $Archive -DestinationPath $scratch
@@ -21,10 +54,12 @@ try {
         Start-Sleep -Milliseconds 500
         $process.Refresh()
         if ($process.HasExited) { throw "Client exited during startup: $($process.ExitCode)" }
-        if ($process.MainWindowHandle -ne 0 -and (Test-Path -LiteralPath $profile)) { $started = $true; break }
+        $nativeWindow = [OasxSmokeWindow]::Find($process.Id)
+        $nativeTitle = [OasxSmokeWindow]::Title($nativeWindow)
+        if ($nativeWindow -ne [IntPtr]::Zero -and $nativeTitle -eq 'OASX AzurTian Runhey - 22289' -and (Test-Path -LiteralPath $profile)) { $started = $true; break }
     }
     if (!$started) {
-        Write-Output "Window handle: $($process.MainWindowHandle); title: $($process.MainWindowTitle); expected profile exists: $(Test-Path -LiteralPath $profile)"
+        Write-Output "Native window: $nativeWindow; title: $nativeTitle; MainWindowHandle: $($process.MainWindowHandle); expected profile exists: $(Test-Path -LiteralPath $profile)"
         Get-ChildItem -LiteralPath $scratch -File -Recurse | Where-Object { $_.Name -match '\.(gs|bak|txt)$' } | ForEach-Object { Write-Output $_.FullName }
         foreach ($capture in @($stdout, $stderr)) {
             if (Test-Path -LiteralPath $capture) { Get-Content -LiteralPath $capture -Tail 60 | Write-Output }
@@ -45,6 +80,8 @@ try {
     @{
         passed = $true
         native_window_created = $true
+        native_window_title = $nativeTitle
+        window_detection = 'EnumWindows for the spawned Flutter process (hidden launch)'
         fresh_profile_created = $true
         credentials_empty = $true
         automatic_actions_disabled = $true

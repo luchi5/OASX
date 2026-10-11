@@ -256,6 +256,7 @@ class I18n {
       sougenbi = 'Sougenbi',
       fallenSun = 'FallenSun';
   static const String eternitySea = 'EternitySea',
+      otherWorldTwilight = 'OtherWorldTwilight',
       dailyTask = 'Daily Task',
       dailyTrifles = 'DailyTrifles';
   static const String areaBoss = 'AreaBoss',

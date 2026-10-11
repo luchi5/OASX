@@ -2,6 +2,10 @@
 part of i18n;
 
 final Map<String, String> _us_base_map = {
+  I18n.otherWorldTwilight: 'Otherworld Twilight',
+  'other_world_twilight_config': 'Otherworld Twilight Settings',
+  'green_mark_name': 'Green Mark Shikigami Name',
+  'green_mark_name_help': 'Positions can change in Otherworld Twilight. Enter the shikigami name. Search for up to 6 seconds after battle starts; do not click if no match is found.',
   ..._us_ui,
   ..._us_script,
   ..._us_global_game,

@@ -16,6 +16,7 @@ final Map<String, String> _cn_menu = {
   I18n.sougenbi: '业原火',
   I18n.fallenSun: '日轮之陨',
   I18n.eternitySea: '永生之海',
+  I18n.otherWorldTwilight: '彼世逢魔',
   I18n.dailyTask: '日常任务',
   I18n.dailyTrifles: '每日琐事',
   I18n.areaBoss: '地域鬼王',

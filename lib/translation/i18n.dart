@@ -20,6 +20,7 @@ part 'cn_parts/cn_orochi_config.dart';
 part 'cn_parts/cn_sougenbi_config.dart';
 part 'cn_parts/cn_fallen_sun_config.dart';
 part 'cn_parts/cn_eternity_sea_config.dart';
+part 'cn_parts/cn_other_world_twilight_config.dart';
 part 'cn_parts/cn_dragon_spine_config.dart';
 part 'cn_parts/cn_area_boss_config.dart';
 part 'cn_parts/cn_gold_youkai_config.dart';
@@ -103,6 +104,7 @@ class Messages extends Translations {
     ..._cn_sougenbi_config,
     ..._cn_fallen_sun_config,
     ..._cn_eternity_sea_config,
+    ..._cn_other_world_twilight_config,
     ..._cn_dragon_spine_config,
     ..._cn_area_boss_config,
     ..._cn_gold_youkai_config,

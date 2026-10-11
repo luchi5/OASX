@@ -10,9 +10,11 @@ if ($folders.Count -ne 1) { throw 'Archive must contain one portable directory' 
 $portable = $folders[0].FullName
 $exe = Join-Path $portable 'app/oasx.exe'
 $profile = Join-Path $portable 'profile-oasx/GetStorage.gs'
+$stdout = Join-Path $scratch 'startup-stdout.txt'
+$stderr = Join-Path $scratch 'startup-stderr.txt'
 $process = $null
 try {
-    $process = Start-Process -FilePath $exe -WorkingDirectory $portable -WindowStyle Hidden -PassThru
+    $process = Start-Process -FilePath $exe -ArgumentList '--skip-parent-console' -WorkingDirectory $portable -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
     $started = $false
     while ([DateTime]::UtcNow -lt $deadline) {
@@ -21,7 +23,14 @@ try {
         if ($process.HasExited) { throw "Client exited during startup: $($process.ExitCode)" }
         if ($process.MainWindowHandle -ne 0 -and (Test-Path -LiteralPath $profile)) { $started = $true; break }
     }
-    if (!$started) { throw 'Client did not create a native window and fresh profile within 45 seconds' }
+    if (!$started) {
+        Write-Output "Window handle: $($process.MainWindowHandle); title: $($process.MainWindowTitle); expected profile exists: $(Test-Path -LiteralPath $profile)"
+        Get-ChildItem -LiteralPath $scratch -File -Recurse | Where-Object { $_.Name -match '\.(gs|bak|txt)$' } | ForEach-Object { Write-Output $_.FullName }
+        foreach ($capture in @($stdout, $stderr)) {
+            if (Test-Path -LiteralPath $capture) { Get-Content -LiteralPath $capture -Tail 60 | Write-Output }
+        }
+        throw 'Client did not create a native window and fresh profile within 45 seconds'
+    }
     Start-Sleep -Seconds 3
     $process.Refresh()
     if ($process.HasExited) { throw 'Client exited after startup' }

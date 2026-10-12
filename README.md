@@ -1,6 +1,6 @@
-# OASX 主脚本兼容版
+# OASX · luchi
 
-这是面向 [OnmyojiAutoScript](https://github.com/luchi5/OnmyojiAutoScript) 的 Flutter 图形客户端，基于 [AzurTian/OASX v0.3.9](https://github.com/AzurTian/OASX) 的界面与 GPL-3.0 源码。它提供任务工作台、参数编辑、实时日志、统计、按账号查看错误档案、庭院多选和配置导入导出。后端和 [网页面板](https://github.com/luchi5/OAS-WebPanel) 分别维护。
+这是由 [luchi5](https://github.com/luchi5) 独立维护的 OASX 图形客户端，面向配套的 [OnmyojiAutoScript](https://github.com/luchi5/OnmyojiAutoScript)。它提供任务工作台、参数编辑、实时日志、统计、按账号查看错误档案、庭院多选和配置导入导出。后端和 [网页面板](https://github.com/luchi5/OAS-WebPanel) 分别维护；本项目的版本发布与后续开发由本仓库管理。
 
 2026-10-11：与 OAS 最新定制任务一起核对，补齐“彼世逢魔”菜单、配置组及按名称绿标的中英文标签。任务及参数仍由后端提供，不改个人目录、连接配置或启动行为。
 
@@ -10,7 +10,7 @@
 
 这是 Windows x64 图形客户端，OAS 主脚本后台仍需另外安装并连接。程序不自动部署后台、不自动升级。对应 Release 标签与 `build-info.json` 提供匹配源码版本；`SHA256SUMS.txt` 可用于核对下载包。
 
-兼容基线为 `e05492c5ff0454780ccb12b1ff945c1d944710ee`，保留上游 Git 历史。本 fork 固定兼容接口，自动更新和安装功能已关闭；后续升级需检查与主脚本的协议兼容。版本号沿用上游构建配置，来源与修改范围见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+客户端固定兼容配套主脚本的接口，自动更新和安装功能已关闭；后续升级通过本仓库 Releases 提供，并检查与主脚本的协议兼容。历史源码与第三方资产的来源、版权和许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 环境与开发
 
@@ -68,4 +68,4 @@ python -B -m unittest discover -s dev_tools -p test_ui_preview_server.py
 
 ## 许可证
 
-GPL-3.0，详见 [LICENSE](LICENSE)。保留上游版权、完整源代码与依赖许可；图标及字体来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+GPL-3.0，详见 [LICENSE](LICENSE)。历史界面与源码基于 [AzurTian/OASX v0.3.9](https://github.com/AzurTian/OASX)，兼容基线为 `e05492c5ff0454780ccb12b1ff945c1d944710ee`，完整 Git 历史和原有版权声明保留。图标、字体及其他依赖来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

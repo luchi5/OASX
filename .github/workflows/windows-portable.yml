@@ -1,4 +1,4 @@
-name: Windows portable package
+name: OASX Windows portable package
 
 on:
   workflow_dispatch:

@@ -215,15 +215,9 @@ class _TaskParameterPanelState extends State<TaskParameterPanel> {
       task: _taskName,
       stagingMode: true,
       scopeScripts: nextScope,
-      saveArgumentOverride: (config, task, group, argument, type, value) {
-        return widget.controller.applyLinkedSetArgument(
-          config: config,
-          task: task,
-          group: group,
-          argument: argument,
-          type: type,
-          value: value,
-        );
+      saveArgumentFactory: (scope) {
+        final dashboard = widget.controller;
+        return dashboard.createParameterSaveCallback(scope);
       },
     );
   }

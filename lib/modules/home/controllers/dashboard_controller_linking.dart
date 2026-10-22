@@ -30,11 +30,12 @@ extension HomeDashboardLinkingX on HomeDashboardController {
     return linkedScriptList.contains(scriptName.trim());
   }
 
-  List<String> get validLinkedScripts => linkedScriptList
-      .where((name) => _scriptService.scriptModelMap.containsKey(name))
-      .toSet()
-      .toList()
-    ..sort();
+  List<String> get validLinkedScripts =>
+      linkedScriptList
+          .where((name) => _scriptService.scriptModelMap.containsKey(name))
+          .toSet()
+          .toList()
+        ..sort();
 
   List<String> linkedScopeScriptsFor(String sourceScript) {
     return _collectCascadeTargets(sourceScript);
@@ -69,6 +70,7 @@ extension HomeDashboardLinkingX on HomeDashboardController {
     required String argument,
     required String type,
     required dynamic value,
+    List<String>? scopeScripts,
   }) async {
     final source = (config ?? '').trim();
     final normalizedTask = (task ?? '').trim();
@@ -76,6 +78,33 @@ extension HomeDashboardLinkingX on HomeDashboardController {
       return false;
     }
     final argsController = Get.find<ArgsController>();
+    if (scopeScripts != null) {
+      // Parameter saves capture their scope once for the whole draft. Keep
+      // the existing unsupported-task filtering without re-reading link state.
+      final scope = scopeScripts.toSet().toList();
+      final targets = <String>[source];
+      if (scope.contains(source)) {
+        for (final target in scope) {
+          if (target != source &&
+              await _scriptContainsTask(target, normalizedTask)) {
+            targets.add(target);
+          }
+        }
+      }
+      var allSuccess = true;
+      for (final target in targets) {
+        final ret = await argsController.setArgument(
+          target,
+          normalizedTask,
+          group,
+          argument,
+          type,
+          value,
+        );
+        allSuccess = ret && allSuccess;
+      }
+      return allSuccess;
+    }
     return _applyTaskActionAcrossLinkedScope(
       sourceScript: source,
       taskName: normalizedTask,
@@ -90,6 +119,20 @@ extension HomeDashboardLinkingX on HomeDashboardController {
         );
       },
     );
+  }
+
+  SaveArgumentCallback createParameterSaveCallback(List<String> scopeScripts) {
+    final scope = List<String>.unmodifiable(scopeScripts);
+    return (config, task, group, argument, type, value) =>
+        applyLinkedSetArgument(
+          config: config,
+          task: task,
+          group: group,
+          argument: argument,
+          type: type,
+          value: value,
+          scopeScripts: scope,
+        );
   }
 
   List<String> _collectCascadeTargets(String sourceScript) {

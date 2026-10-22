@@ -94,7 +94,7 @@ class Args extends StatelessWidget {
                     .map(
                       (name) => ExpansionTileItem(
                         key: ValueKey<String>(
-                          'args-group-$selectedScript-$selectedTask-$name',
+                          'args-group-$selectedScript-$selectedTask-$name-${controller.draftGeneration}',
                         ),
                         initiallyExpanded: true,
                         isHasTopBorder: false,

@@ -27,6 +27,11 @@ class _ArgumentViewState extends State<ArgumentView> {
   bool landscape = true;
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
+  late final int _draftGeneration;
+
+  bool get _isCurrentDraft =>
+      !_argsController.isClosed &&
+      _argsController.draftGeneration == _draftGeneration;
 
   ArgumentModel get model {
     final controller = Get.find<ArgsController>();
@@ -47,6 +52,7 @@ class _ArgumentViewState extends State<ArgumentView> {
   @override
   void initState() {
     super.initState();
+    _draftGeneration = _argsController.draftGeneration;
     _textController = TextEditingController(text: model.value.toString());
     _focusNode = FocusNode();
   }
@@ -62,6 +68,9 @@ class _ArgumentViewState extends State<ArgumentView> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      // Reading the map keeps this guard reactive when a new load clears it.
+      _argsController.groupsData.value;
+      if (!_isCurrentDraft) return const SizedBox.shrink();
       landscape = MediaQuery.of(context).orientation == Orientation.landscape;
       _syncTextController();
       final title = _title();

@@ -1,6 +1,15 @@
 part of args;
 
 class ArgsController extends GetxController {
+  ArgsController({
+    Future<Map<String, dynamic>> Function(String config, String task)?
+        loadArguments,
+  }) : _loadArguments =
+      loadArguments ??
+      ((config, task) => ApiClient().getScriptTask(config, task));
+
+  final Future<Map<String, dynamic>> Function(String config, String task)
+      _loadArguments;
   final groups = Rx<List<GroupsModel>>([]);
   final groupsName = Rx<List<String>>([]);
   final groupsData = Rx<Map<String, GroupsModel>>({});
@@ -22,6 +31,9 @@ class ArgsController extends GetxController {
   String _loadedTask = '';
   List<String> _scopeScripts = const [];
   SaveArgumentCallback? _saveArgumentOverride;
+  SaveArgumentCallback Function(List<String> scopeScripts)?
+      _saveArgumentFactory;
+  int _loadGeneration = 0;
 
   static bool isImmediateSchedulingField(String group, String argument) {
     return group == schedulerGroup && argument == nextRunArg;
@@ -44,11 +56,19 @@ class ArgsController extends GetxController {
     bool stagingMode = false,
     List<String> scopeScripts = const [],
     SaveArgumentCallback? saveArgumentOverride,
+    SaveArgumentCallback Function(List<String> scopeScripts)?
+        saveArgumentFactory,
   }) async {
+    final generation = ++_loadGeneration;
     _loadedConfig = config;
     _loadedTask = task;
     updateScopeScripts(scopeScripts, config: config);
     _saveArgumentOverride = saveArgumentOverride;
+    _saveArgumentFactory = saveArgumentFactory;
+    // Remove the old account's editable fields before starting the next read.
+    groupsName.value = [];
+    groupsData.value = {};
+    groups.value = [];
     isDraftMode.value = stagingMode;
     dirtyFieldKeys.clear();
     fieldErrors.clear();
@@ -56,15 +76,24 @@ class ArgsController extends GetxController {
 
     final groupsMap = <String, GroupsModel>{};
     final names = <String>[];
-    final json = await ApiClient().getScriptTask(config, task);
+    final Map<String, dynamic> json;
+    try {
+      json = await _loadArguments(config, task);
+    } catch (_) {
+      if (generation != _loadGeneration || isClosed) return;
+      rethrow;
+    }
+    if (generation != _loadGeneration || isClosed) return;
     for (final entry in json.entries) {
       names.add(entry.key);
       final arguments = <ArgumentModel>[];
       for (final argument in entry.value) {
         arguments.add(ArgumentModel.fromJson(argument));
       }
-      groupsMap[entry.key] =
-          GroupsModel(groupName: entry.key, members: arguments);
+      groupsMap[entry.key] = GroupsModel(
+        groupName: entry.key,
+        members: arguments,
+      );
     }
     groupsData.value = groupsMap;
     groupsName.value = names;
@@ -142,7 +171,7 @@ class ArgsController extends GetxController {
     if (model != null &&
         hasOriginal &&
         !_isEqualValue(model.value, _originalValues[key])) {
-      model.value = _originalValues[key];
+      model.value = _copyValue(_originalValues[key]);
       shouldRefreshModel = true;
     }
     final removedDirty = dirtyFieldKeys.remove(key);
@@ -182,7 +211,9 @@ class ArgsController extends GetxController {
 
   String get currentTask => _loadedTask;
 
-  List<String> get scopeScripts => _scopeScripts;
+  int get draftGeneration => _loadGeneration;
+
+  List<String> get scopeScripts => List.unmodifiable(_scopeScripts);
 
   void updateScopeScripts(List<String> scopeScripts, {String config = ''}) {
     _scopeScripts = _normalizeScope(scopeScripts, config);
@@ -194,7 +225,7 @@ class ArgsController extends GetxController {
       for (final member in entry.value.members.cast<ArgumentModel>()) {
         final key = _fieldKey(entry.key, member.title);
         if (_originalValues.containsKey(key)) {
-          member.value = _originalValues[key];
+          member.value = _copyValue(_originalValues[key]);
         }
       }
     }
@@ -205,7 +236,10 @@ class ArgsController extends GetxController {
   }
 
   Future<bool> saveDraftChanges() async {
-    if (!isDraftMode.value || _loadedConfig.isEmpty || _loadedTask.isEmpty) {
+    if (isSavingDraft.value ||
+        !isDraftMode.value ||
+        _loadedConfig.isEmpty ||
+        _loadedTask.isEmpty) {
       return false;
     }
     final errors = _collectValidationErrors();
@@ -220,41 +254,62 @@ class ArgsController extends GetxController {
       return true;
     }
 
+    // Snapshot every destination and value before yielding. A later load or
+    // edit must never redirect an already started save to the new form.
+    final generation = _loadGeneration;
+    final source = _loadedConfig;
+    final task = _loadedTask;
+    final saveArgumentFactory = _saveArgumentFactory;
+    final saveArgumentOverride = _saveArgumentOverride;
+    final scope = List<String>.unmodifiable(
+      _scopeScripts.isEmpty ? [source] : _scopeScripts,
+    );
+    final writes = <_DraftFieldWrite>[];
+    for (final key in dirtyFieldKeys) {
+      final field = _decodeFieldKey(key);
+      final model = findArgument(field.group, field.argument);
+      if (model != null) {
+        writes.add(
+          _DraftFieldWrite(key, field, model.type, _copyValue(model.value)),
+        );
+      }
+    }
     isSavingDraft.value = true;
     var allSuccess = true;
-    final targets = _saveArgumentOverride == null
-        ? (_scopeScripts.isEmpty ? [_loadedConfig] : _scopeScripts)
-        : [_loadedConfig];
-    final savedKeys = <String>{};
     try {
-      for (final key in dirtyFieldKeys.toList()) {
-        final field = _decodeFieldKey(key);
-        final model = findArgument(field.group, field.argument);
-        if (model == null) {
-          continue;
-        }
+      final override =
+          saveArgumentFactory?.call(scope) ?? saveArgumentOverride;
+      final persist = override ?? setArgument;
+      final targets = override == null ? scope : [source];
+      for (final write in writes) {
         var fieldSuccess = true;
         for (final config in targets) {
-          final ret = await _persistArgument(
-            config: config,
-            task: _loadedTask,
-            group: field.group,
-            argument: field.argument,
-            type: model.type,
-            value: model.value,
+          final ret = await persist(
+            config,
+            task,
+            write.field.group,
+            write.field.argument,
+            write.type,
+            _copyValue(write.value),
           );
           fieldSuccess = ret && fieldSuccess;
         }
         allSuccess = fieldSuccess && allSuccess;
-        if (fieldSuccess) {
-          _originalValues[key] = model.value;
-          savedKeys.add(key);
+        if (fieldSuccess && generation == _loadGeneration && !isClosed) {
+          _originalValues[write.key] = _copyValue(write.value);
+          final current = findArgument(write.field.group, write.field.argument);
+          if (current != null) {
+            // A user can continue editing while the previous value is saved.
+            // Recompute dirtiness against the value actually sent, not current.
+            stageArgumentChange(
+              write.field.group,
+              write.field.argument,
+              current.value,
+              current.type,
+            );
+          }
         }
       }
-      if (savedKeys.isNotEmpty) {
-        dirtyFieldKeys.removeAll(savedKeys);
-      }
-      dirtyFieldKeys.refresh();
       return allSuccess;
     } finally {
       isSavingDraft.value = false;
@@ -293,27 +348,6 @@ class ArgsController extends GetxController {
     return errors;
   }
 
-  Future<bool> _persistArgument({
-    required String config,
-    required String task,
-    required String group,
-    required String argument,
-    required String type,
-    required dynamic value,
-  }) async {
-    if (_saveArgumentOverride != null) {
-      return _saveArgumentOverride!(
-        config,
-        task,
-        group,
-        argument,
-        type,
-        value,
-      );
-    }
-    return setArgument(config, task, group, argument, type, value);
-  }
-
   List<String> _normalizeScope(List<String> raw, String config) {
     final result = raw
         .map((item) => item.trim())
@@ -330,13 +364,23 @@ class ArgsController extends GetxController {
   void _snapshotOriginalValues() {
     for (final entry in groupsData.value.entries) {
       for (final model in entry.value.members.cast<ArgumentModel>()) {
-        _originalValues[_fieldKey(entry.key, model.title)] = model.value;
+        _originalValues[_fieldKey(entry.key, model.title)] = _copyValue(
+          model.value,
+        );
       }
     }
   }
 
   bool _isEqualValue(dynamic left, dynamic right) {
     return left?.toString() == right?.toString();
+  }
+
+  dynamic _copyValue(dynamic value) {
+    if (value is List) return value.map(_copyValue).toList();
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key, _copyValue(item)));
+    }
+    return value;
   }
 
   String _fieldKey(String group, String argument) {
@@ -449,11 +493,17 @@ class ArgumentModel {
 }
 
 class _FieldDescriptor {
-  const _FieldDescriptor({
-    required this.group,
-    required this.argument,
-  });
+  const _FieldDescriptor({required this.group, required this.argument});
 
   final String group;
   final String argument;
+}
+
+class _DraftFieldWrite {
+  const _DraftFieldWrite(this.key, this.field, this.type, this.value);
+
+  final String key;
+  final _FieldDescriptor field;
+  final String type;
+  final dynamic value;
 }

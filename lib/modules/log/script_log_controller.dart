@@ -23,8 +23,4 @@ class ScriptLogController extends GetxController with LogMixin {
   /// Total buffered logs allowed before trimming.
   @override
   int get maxBuffer => 6000;
-
-  /// Maximum archived lines kept for history.
-  @override
-  int get maxArchivedLines => 12000;
 }

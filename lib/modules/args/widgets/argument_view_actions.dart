@@ -43,6 +43,7 @@ extension _ArgumentViewActions on _ArgumentViewState {
     String type, {
     bool useSetState = false,
   }) {
+    if (!mounted || !_isCurrentDraft) return;
     if (_isProtectedImmediateScheduleField) {
       return;
     }

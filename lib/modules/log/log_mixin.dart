@@ -10,8 +10,6 @@ mixin LogMixin on GetxController {
 
   int get maxBuffer => 1000;
 
-  int get maxArchivedLines => 5000;
-
   int get maxBurst => 50;
 
   int get minBurst => 1;
@@ -20,8 +18,6 @@ mixin LogMixin on GetxController {
   Duration get uiRefreshInterval => const Duration(milliseconds: 120);
 
   final logs = <String>[].obs;
-
-  final archivedLogs = <String>[].obs;
 
   final autoScroll = true.obs;
 
@@ -81,12 +77,9 @@ mixin LogMixin on GetxController {
     if (logs.length > maxLines) {
       logs.removeRange(0, logs.length - maxLines);
     }
-    if (archivedLogs.length > maxArchivedLines) {
-      archivedLogs.removeRange(0, archivedLogs.length - maxArchivedLines);
-    }
   }
 
-  /// Moves a batch of pending logs into the UI-facing collections.
+  /// Moves a batch of pending logs into the UI-facing collection.
   int _updateUILogs() {
     final backlog = _pendingLogs.length;
     final burst = backlog.clamp(minBurst, maxBurst);
@@ -99,7 +92,6 @@ mixin LogMixin on GetxController {
     }
     _pendingLogs.removeRange(0, batch.length);
     logs.addAll(batch);
-    archivedLogs.addAll(batch);
     return batch.length;
   }
 
@@ -117,7 +109,6 @@ mixin LogMixin on GetxController {
     final batch = _pendingLogs.take(count).toList();
     _pendingLogs.removeRange(0, count);
     logs.addAll(batch);
-    archivedLogs.addAll(batch);
     _removeUIOldLogs();
     _lastUiRefreshTick = _uiRefreshWatch.elapsedMilliseconds;
     return count;
@@ -147,7 +138,6 @@ mixin LogMixin on GetxController {
 
   void clearLog() {
     logs.clear();
-    archivedLogs.clear();
     _pendingLogs.clear();
   }
 
